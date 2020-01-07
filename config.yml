@@ -1,0 +1,48 @@
+---
+ - name: configuration system
+   hosts: servers
+   remote_user: "{{ ansible_user }}"
+   become: yes
+   become_method: su
+   #become_user: root
+   tasks:
+     - name: Transfer the script
+       copy: src=test2.sh dest=/tmp/ mode=0777
+
+     - name: touch file 
+       file:
+         path: /tmp/result.json
+         state: touch
+         mode: u+rw,g-wx,o-rwx
+
+
+     - name: execute the script
+       command: sh /tmp/test2.sh 
+       ignore_errors: True
+       register: shell_output
+     
+     - name: fetch copy from remote to local 
+       fetch:
+         src: /tmp/result.json
+         dest: /tmp/results/{{ansible_hostname}}
+     
+
+     - name: delete files 
+       file:
+          path: "{{ item }}"
+          state: absent 
+       with_items:
+          - /tmp/result.json 
+          - /tmp/test2.sh 
+
+     - local_action: "copy src=/tmp/results/{{ ansible_hostname }}/{{ inventory_hostname }}/tmp/result.json  dest=/tmp/config_data/{{ inventory_hostname }}.json "
+     
+     - name: compare
+       delegate_to: 127.0.0.1
+       command: python script2.py /tmp/config_data/{{inventory_hostname}}.json "{{ patern }}"
+       ignore_errors: True
+
+     - name: json to mongodb
+       delegate_to: 127.0.0.1
+       command: python stock.py /tmp/config_data/{{inventory_hostname}}.json
+       ignore_errors: True
