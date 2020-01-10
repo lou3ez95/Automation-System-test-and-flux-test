@@ -1,0 +1,50 @@
+- name: telnet check
+  hosts: servers
+  gather_facts: no
+  remote_user: "{{ ansible_user }}"
+  become: yes
+  become_method: su
+  vars_files:
+    - /home/ansibleM/tachetelnet/AnsibleProject/{{inventory_hostname}}
+  tasks:
+  - name: Telnet check
+    command: telnet "{{ item.0.IPname }}" "{{ item.1.Port_nb }}"
+    ignore_errors: True
+    register: telnet
+    with_subelements:
+      - "{{ IPVARS }}"
+      - Port
+  
+  - local_action:
+      module: lineinfile
+      dest: /tmp/{{inventory_hostname}}
+      line: '{{ telnet.results| to_json }}'
+      create: yes
+
+  
+  - name: Call the final shell of json application script including filtering
+    delegate_to: 127.0.0.1
+    command: sh /home/ansibleM/tachetelnet/AnsibleProject/FinalShell.sh {{inventory_hostname}} /tmp/{{inventory_hostname}}
+    ignore_errors: True
+
+#delete only debug files
+
+  - name: delete files  
+    delegate_to: 127.0.0.1
+    file:
+       path: "{{ item }}"
+       state: absent
+    with_items:
+       - /tmp/{{ inventory_hostname }}
+       - /home/ansibleM/tachetelnet/AnsibleProject/{{inventory_hostname}}
+  - name: compare
+    delegate_to: 127.0.0.1
+    command: python comparaison.py /tmp/results/{{inventory_hostname}}.json
+    ignore_errors: True
+  
+  - name: json to mongodb
+    delegate_to: 127.0.0.1
+    command: python saveJsonDataToMongo.py /tmp/results/{{inventory_hostname}}.json
+    ignore_errors: True
+
+  

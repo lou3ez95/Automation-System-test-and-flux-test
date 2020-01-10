@@ -1,0 +1,9 @@
+[all:vars]
+ansible_connection=ssh 
+ansible_user=osadmin 
+ansible_ssh_pass=Adm3Pl2 
+ansible_become_pass=PLATON
+
+[servers]
+192.168.56.102
+192.168.56.103
